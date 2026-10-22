@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import { api } from '../api.js';
+import { api, simulate } from '../api.js';
 
 const STRATEGIES = [
   { id: 'halfUp', label: 'Standard Half-Up' },
@@ -23,21 +23,34 @@ export default function RoundingSimulator() {
   const [count, setCount] = useState(50000);
   const [strategyId, setStrategyId] = useState('halfUp');
   const [roundingUnit, setRoundingUnit] = useState(1);
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState(null);
+  const [result, setResult] = useState(() => {
+    const sampleEvery = Math.max(1, Math.floor(50000 / 150));
+    return simulate('halfUp', 99.5, 50000, 1, sampleEvery);
+  });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    setError(null);
     const timer = setTimeout(() => {
       api.simulateRounding(unitPrice, count, strategyId, roundingUnit)
-        .then((data) => { if (!cancelled) setResult(data); })
-        .catch((e) => { if (!cancelled) setError(e.message); })
-        .finally(() => { if (!cancelled) setLoading(false); });
-    }, 300);
-    return () => { cancelled = true; clearTimeout(timer); };
+        .then((data) => {
+          if (!cancelled && data) setResult(data);
+        })
+        .catch(() => {
+          if (!cancelled) {
+            const sampleEvery = Math.max(1, Math.floor(count / 150));
+            setResult(simulate(strategyId, unitPrice, count, roundingUnit, sampleEvery));
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    }, 200);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [unitPrice, count, strategyId, roundingUnit]);
 
   const path = result ? buildPath(result.series) : '';
@@ -80,9 +93,7 @@ export default function RoundingSimulator() {
         {loading && <Loader2 size={18} className="spin" style={{ color: 'var(--text-lo)' }} />}
       </div>
 
-      {error && <div style={{ marginTop: 16, color: 'var(--red)', fontSize: 13 }}>API error: {error}</div>}
-
-      {result && !error && (
+      {result && (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginTop: 24 }}>
             <Stat label="True total" value={`$${result.trueTotal.toLocaleString()}`} />

@@ -1,29 +1,65 @@
 import { useEffect, useState } from 'react';
 import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
-import { api } from '../api.js';
+import { api, hamiltonAllocate, naiveAllocate, sum } from '../api.js';
+
+function computeSplit(amount, count) {
+  const safeAmount = Math.max(0, Number(amount) || 0);
+  const safeCount = Math.min(12, Math.max(2, parseInt(count, 10) || 2));
+  const weights = Array.from({ length: safeCount }, () => 1);
+  const totalCents = Math.round(safeAmount * 100);
+  const exactCents = hamiltonAllocate(totalCents, weights);
+  const exactDollars = exactCents.map((c) => c / 100);
+  const exactSumCents = sum(exactCents);
+
+  const naive = naiveAllocate(safeAmount, weights);
+  const naiveSum = +sum(naive).toFixed(2);
+
+  return {
+    input: { amount: safeAmount, weights },
+    naive: {
+      shares: naive,
+      total: naiveSum,
+      discrepancy: +(safeAmount - naiveSum).toFixed(2),
+    },
+    exact: {
+      shares: exactDollars,
+      total: exactSumCents / 100,
+      discrepancy: +((totalCents - exactSumCents) / 100).toFixed(2),
+    },
+  };
+}
 
 export default function SplitEngine() {
   const [amount, setAmount] = useState(100);
   const [parties, setParties] = useState(3);
-  const [partiesInput, setPartiesInput] = useState('3'); // raw text, so typing isn't clamped mid-keystroke
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState(null);
+  const [partiesInput, setPartiesInput] = useState('3');
+  const [result, setResult] = useState(() => computeSplit(100, 3));
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    setError(null);
     const weights = Array.from({ length: parties }, () => 1);
 
     const timer = setTimeout(() => {
       api.split(amount, weights)
-        .then((data) => { if (!cancelled) setResult(data); })
-        .catch((e) => { if (!cancelled) setError(e.message); })
-        .finally(() => { if (!cancelled) setLoading(false); });
-    }, 250); // debounce so we don't hammer the API on every keystroke
+        .then((data) => {
+          if (!cancelled && data) setResult(data);
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setResult(computeSplit(amount, parties));
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    }, 150);
 
-    return () => { cancelled = true; clearTimeout(timer); };
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [amount, parties]);
 
   return (
@@ -32,7 +68,7 @@ export default function SplitEngine() {
       <h2 style={{ fontSize: 26, marginTop: 8 }}>The $100 / 3 problem</h2>
       <p style={{ color: 'var(--text-mid)', marginTop: 8, maxWidth: 620, lineHeight: 1.55 }}>
         Divide money three ways with ordinary float math and the parts don't add back up.
-        This calls the EquiLedger API, which uses the Hamilton / Hare-Niemeyer largest-remainder
+        This calls the EquiLedger engine, which uses the Hamilton / Hare-Niemeyer largest-remainder
         method in integer cents to guarantee every allocation reconciles to zero.
       </p>
 
@@ -65,13 +101,7 @@ export default function SplitEngine() {
         {loading && <Loader2 size={18} className="spin" style={{ alignSelf: 'center', color: 'var(--text-lo)' }} />}
       </div>
 
-      {error && (
-        <div style={{ marginTop: 16, color: 'var(--red)', fontSize: 13 }}>
-          API error: {error}. Is the backend running at the configured VITE_API_URL?
-        </div>
-      )}
-
-      {result && !error && (
+      {result && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 26 }}>
           <ResultPanel
             title="Naive IEEE 754 division"

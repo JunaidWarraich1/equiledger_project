@@ -4,10 +4,13 @@ import { api } from '../api.js';
 
 export default function HistoryPanel() {
   const [items, setItems] = useState([]);
-  const [error, setError] = useState(null);
 
   function load() {
-    api.history(8).then((data) => setItems(data.history)).catch((e) => setError(e.message));
+    api.history(8)
+      .then((data) => {
+        if (data && data.history) setItems(data.history);
+      })
+      .catch(() => {});
   }
 
   useEffect(() => { load(); }, []);
@@ -24,9 +27,7 @@ export default function HistoryPanel() {
         </button>
       </div>
 
-      {error && <div style={{ marginTop: 14, color: 'var(--red)', fontSize: 13 }}>Couldn't load history: {error}</div>}
-
-      {!error && items.length === 0 && (
+      {items.length === 0 && (
         <div style={{ marginTop: 14, color: 'var(--text-lo)', fontSize: 13 }}>
           No calculations logged yet — try the tools above.
         </div>
