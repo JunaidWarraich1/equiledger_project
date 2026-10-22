@@ -4,9 +4,9 @@ import confetti from 'canvas-confetti';
 
 const CAPTION = `Built EquiLedger: a precision financial audit engine that solves the "$100 / 3" floating-point problem using the Hamilton / Hare-Niemeyer largest-remainder algorithm.
 
-Zero-discrepancy bill splitting, a rounding-leakage simulator across 100k transactions, and a live IEEE 754 flaw lab — built with React + Vite, deployed on Firebase Hosting.
+Zero-discrepancy bill splitting, a rounding-leakage simulator across 100k transactions, and a live IEEE 754 flaw lab — built with React + Vite by Muhammad Junaid Warraich, deployed on Vercel.
 
-#SoftwareEngineering #Fintech #React`;
+#SoftwareEngineering #Fintech #React #FullStack`;
 
 const TALKING_POINTS = [
   'Why naive float division silently loses cents at scale, and how largest-remainder allocation guarantees the parts always sum to the whole.',
